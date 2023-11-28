@@ -1,9 +1,9 @@
-const symbols = ".,+-*/^%<=>!&|";
 const digits = "0123456789";
 const word = /^[A-Za-z_]/;
 const whitespace = /^\s/;
+const binaryOps = "+-*/^%<>=!&|";
 
-const tokMap = {
+const symbolMap = {
   "{": "open curly",
   "}": "close curly",
   "[": "open square",
@@ -12,6 +12,9 @@ const tokMap = {
   ")": "close paren",
   ";": "semicolon",
   "~": "tilde",
+  ".": "dot",
+  ",": "comma",
+  ":": "colon",
 } as const;
 
 export function* lex(code: string) {
@@ -20,21 +23,19 @@ export function* lex(code: string) {
    * If n is -1, read to the end of the code. */
   function readN(n: number) {
     if (n === -1) {
-      globalIdx += code.length - 1;
+      // globalIdx += code.length - 1;
       const text = code;
       code = "";
       return text;
     }
     const text = code.slice(0, n);
-    globalIdx += n;
+    // globalIdx += n;
     code = code.slice(n);
     return text;
   }
   while (code) {
-    if (symbols.includes(code[0])) {
-      yield { kind: "symbol", text: readN(1), index: globalIdx } as const;
-    } else if (code[0] === "?") {
-      yield { kind: "char", text: readN(2), index: globalIdx } as const;
+    if (code[0] === "?") {
+      yield { kind: "char", text: readN(2) } as const;
     } else if (code[0] === "$") {
       const idx = code
         .slice(1)
@@ -43,14 +44,13 @@ export function* lex(code: string) {
       yield {
         kind: "script arg",
         text: readN(idx) + 1,
-        index: globalIdx,
       } as const;
     } else if (code[0] === '"') {
       const idx =
         code
           .split("")
           .findIndex((char, i) => char === '"' && code[i - 1] !== "\\") + 1;
-      yield { kind: "string", text: readN(idx), index: globalIdx } as const;
+      yield { kind: "string", text: readN(idx) } as const;
     } else if ((digits + "_").includes(code[0])) {
       let dotRead = false;
       const idx = code.split("").findIndex((char, i) => {
@@ -59,21 +59,23 @@ export function* lex(code: string) {
         if (char === ".") return !(dotRead = !dotRead);
         return true;
       });
-      yield { kind: "number", text: readN(idx), index: globalIdx } as const;
-    } else if (code[0] in tokMap) {
-      const kind = tokMap[code[0] as keyof typeof tokMap];
-      yield { kind, text: readN(1) };
+      yield { kind: "number", text: readN(idx) } as const;
+    } else if (code[0] in symbolMap) {
+      const kind = symbolMap[code[0] as keyof typeof symbolMap];
+      yield { kind, text: readN(1) } as const;
+    } else if (binaryOps.includes(code[0])) {
+      yield { kind: "binary op", text: readN(1) } as const;
     } else if (word.test(code[0])) {
       const idx = code.split("").findIndex((char) => !word.test(char));
-      yield { kind: "word", text: readN(idx) };
+      yield { kind: "word", text: readN(idx) } as const;
     } else if (whitespace.test(code[0])) {
       readN(code.split("").findIndex((char) => !whitespace.test(char)));
     } else {
       throw new Error("Error in lexing, remaining code is: " + code);
     }
   }
+  // return { kind: "eof", text: "" } as const;
 }
 
-export type Token = ReturnType<typeof lex> extends Generator<infer T>
-  ? T
-  : never;
+type TokenGenerator = ReturnType<typeof lex>;
+export type Token = TokenGenerator extends Generator<infer T> ? T : never;
