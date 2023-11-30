@@ -1,0 +1,24 @@
+(unfinished)
+
+(note: parentheses are balanced and inserted where necessary _before_ parsing.)
+
+many($) = "" | ($ + many($))
+one_or_more($) = $ + many($)
+binary_op($) = expression + $ + expression
+
+program = many(statement)
+statement = fn_definition | expression
+
+fn_definition = "fn" + ident + "(" + many(ident) + ")" + "{" + program + "}"
+
+expression = literal | fn_call | parenthesized | exponential
+parenthesized = "(" + expression + ")"
+
+literal = number | string | lambda
+lambda = "{" + program + "}"
+
+fn_call = (ident_fn | (ident_notfn + "~")) + "(" + many(expression) + ")"
+
+exponential = binary_op("^") | multiplicative
+multiplicative = binary_op("*" | "/" | "%") | additive
+additive = binary_op("+" | "-")
