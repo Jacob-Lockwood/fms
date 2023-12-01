@@ -29,6 +29,12 @@ function* balanceParens(tokens: Peekable<Token>): Generator<Token> {
   let depth = 0;
   for (const tok of tokens) {
     if (!tok) return;
+    if (tok.kind === "semicolon") {
+      for (depth; depth > 0; depth--) {
+        yield { kind: "close paren", text: ")" };
+      }
+      continue;
+    }
     yield tok;
     if (tok.kind === "word") {
       let fn = isFn(tok.text);
@@ -44,10 +50,6 @@ function* balanceParens(tokens: Peekable<Token>): Generator<Token> {
       depth++;
     } else if (tok.kind === "close paren") {
       depth--;
-    } else if (tok.kind === "semicolon") {
-      for (depth; depth > 0; depth--) {
-        yield { kind: "close paren", text: ")" };
-      }
     } else if (tok.kind === "open curly") {
       yield* balanceParens(tokens);
     } else if (tok.kind === "close curly") {
@@ -63,4 +65,6 @@ function* balanceParens(tokens: Peekable<Token>): Generator<Token> {
   }
 }
 
-console.log([...balanceParens(new Peekable(lex("%{+5}*len2")))]);
+console.log([
+  ...balanceParens(new Peekable(lex(`{100*{%3!*"Fizz"+%5!*"Buzz"|}}`))),
+]);

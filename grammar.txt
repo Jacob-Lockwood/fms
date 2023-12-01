@@ -2,23 +2,35 @@
 
 (note: parentheses are balanced and inserted where necessary _before_ parsing.)
 
-many($) = "" | ($ + many($))
-one_or_more($) = $ + many($)
-binary_op($) = expression + $ + expression
+many($) = ($ many($))?;
+one_or_more($) = $ many($);
+binary_op($op, $kind) = $kind $op? $kind?;
 
-program = many(statement)
-statement = fn_definition | expression
+program = many(statement);
+statement = fn_definition | expression;
 
-fn_definition = "fn" + ident + "(" + many(ident) + ")" + "{" + program + "}"
+fn_definition = "fn" ident "(" many(ident) ")" lambda;
 
-expression = literal | fn_call | parenthesized | exponential
-parenthesized = "(" + expression + ")"
+expression = prec_1;
 
-literal = number | string | lambda
-lambda = "{" + program + "}"
+prec_1 = assignment = (var_ref op? ":")? prec_2;
+prec_2 = or = binary_op("|", prec_3);
+prec_3 = and = binary_op("&", prec_4);
+prec_4 = relational = binary_op("=" | "<" | ">" | "in");
+prec_5 = additive = binary_op("+" | "-", prec_6);
+prec_6 = multiplicative = binary_op("*" | "/" | "%", prec_7);
+prec_7 = exponential = binary_op("^", primitive);
 
-fn_call = (ident_fn | (ident_notfn + "~")) + "(" + many(expression) + ")"
+primitive = 
+  | literal
+  | parenthesized
+  | var_ref
+  | fn_call;
 
-exponential = binary_op("^") | multiplicative
-multiplicative = binary_op("*" | "/" | "%") | additive
-additive = binary_op("+" | "-")
+literal = int | string | list | lambda;
+list = "[" many(expression) "]";
+lambda = "{" many(expression) "}";
+
+parenthesized = "(" expression ")";
+
+fn_call = fn_name "(" many(expression) ")";
