@@ -1,31 +1,14 @@
-import { lex, type Token } from "./lexer";
-import { Peekable } from "./util/peekable";
-
-// based off of https://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
-
-/*
-
-{/(len)/2)%rev~*[]}
-{ / ( len ) / 2 ) % rev~ * [ ] }
-{ . / (len(.) / 2) % rev~ * [] }
-
-(.) => mul(mod(div(., div(len(.), 2)), rev), [])
-
-
-{100*{"Fizz"*!%3+"Buzz"*!%5|}}
-"Fizz" * !(. % 3) + "Buzz" * !(. % 5) | .
-|(+(*("Fizz",!(%($,3))),*("Buzz",!(%($,5)))),$) 
-
-*/
+import type { Token } from "../lexer";
+import { Peekable } from "../util/peekable";
 
 const fns = { len: 1, rev: 1 };
 
 //+ todo differentiate functions and variables
-function isFn(word: string): word is keyof typeof fns {
+export function isFn(word: string): word is keyof typeof fns {
   return word in fns;
 }
 
-function* balanceParens(tokens: Peekable<Token>): Generator<Token> {
+export function* balanceParens(tokens: Peekable<Token>): Generator<Token> {
   let depth = 0;
   for (const tok of tokens) {
     if (!tok) return;
@@ -64,7 +47,3 @@ function* balanceParens(tokens: Peekable<Token>): Generator<Token> {
     yield { kind: "close paren", text: ")" };
   }
 }
-
-console.log([
-  ...balanceParens(new Peekable(lex(`{100*{%3!*"Fizz"+%5!*"Buzz"|}}`))),
-]);

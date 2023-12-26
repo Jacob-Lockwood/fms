@@ -33,7 +33,7 @@ export function* lex(code: string) {
     code = code.slice(n);
     return text;
   }
-  while (code) {
+  while (code[0]) {
     if (code[0] === "?") {
       yield { kind: "char", text: readN(2) } as const;
     } else if (code[0] === "$") {
@@ -48,8 +48,9 @@ export function* lex(code: string) {
     } else if (code[0] === '"') {
       const idx =
         code
+          .slice(1)
           .split("")
-          .findIndex((char, i) => char === '"' && code[i - 1] !== "\\") + 1;
+          .findIndex((char, i) => char === '"' && code[i - 1] !== "\\") + 2;
       yield { kind: "string", text: readN(idx) } as const;
     } else if ((digits + "_").includes(code[0])) {
       let dotRead = false;
