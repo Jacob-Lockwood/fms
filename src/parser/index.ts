@@ -13,13 +13,14 @@ function or<T extends any[]>(
     try {
       return rule(tokens);
     } catch (e) {
-      assert(e instanceof Error && e.message.startsWith("not"));
+      // below makes nested `or` calls stop working
+      // assert(e instanceof Error && e.message.startsWith("not"));
     }
   }
   throw new Error("No rule was matched");
 }
-function many(rule: (tokens: Token[]) => Node, tokens: Token[]) {
-  const out: Node[] = [];
+function many<T>(rule: (tokens: Token[]) => T, tokens: Token[]) {
+  const out: T[] = [];
   while (true) {
     try {
       out.push(rule(tokens));
@@ -49,7 +50,8 @@ type Node =
   | { kind: "list"; items: Node[] }
   | { kind: "lambda"; body: Node[] }
   | { kind: "fnCall"; name: string; args: Node[] }
-  | { kind: "varRef"; name: string };
+  | { kind: "varRef"; name: string }
+  | { kind: "implicit" };
 
 function statement(tokens: Token[]) {
   // console.log("statement", JSON.stringify(tokens));
@@ -106,23 +108,6 @@ function fnDefinition(tokens: Token[]): Node {
 //   return expression(tokens);
 // }
 
-/*
-
-1 + 2 * 3 - 2 * x
-
-+- move 2 left
-/* move 1 left
-
-(- (+ 1 (* 2 3)) (* 2 x))
-
-1 +
-(+ 1 2 *
-(+ 1 (* 2 3 -
-(- (+ 1 (* 2 3)) 2 *
-(- (+ 1 (* 2 3)) (* 2 x))
-
-*/
-
 const precedence = {
   "|": 1,
   "&": 1,
@@ -137,60 +122,31 @@ const precedence = {
   "^": 5,
 };
 
-// using Shunting-yard algorithm
+// slightly modified Shunting-yard algorithm to allow for implicits
 function expression(tokens: Token[]): Node {
-  const items: (Node | keyof typeof precedence | "(" | ")")[] = [];
-  let depth = 0;
-  while (tokens[0] && tokens[0].kind !== "close curly") {
-    if (tokens[0].kind === "open paren") {
-      if (
-        items.at(-1) &&
-        (typeof items.at(-1) !== "string" || items.at(-1) === ")")
-      )
-        break;
-      depth++;
-      items.push(tokens.shift()!.text as "(");
-    } else if (tokens[0].kind === "close paren") {
-      depth--;
-      // assert(depth !== -1, "not expression");
-      if (depth === -1) break;
-      items.push(tokens.shift()!.text as ")");
-    } else if (tokens[0].kind === "binary op") {
-      items.push(tokens.shift()!.text as keyof typeof precedence);
-    } else {
-      if (
-        items.at(-1) &&
-        (typeof items.at(-1) !== "string" || items.at(-1) === ")")
-      )
-        break;
-      items.push(primary(tokens));
-    }
-  }
-  assert(items.length);
-  // console.log("items", items);
+  const code: (Node | keyof typeof precedence)[] = [
+    primary(tokens),
+    ...many((tokens) => {
+      assert(tokens[0]?.kind === "binary op");
+      const o = tokens.shift()!.text as keyof typeof precedence;
+      const p = primary(tokens);
+      return [o, p];
+    }, tokens).flat(),
+  ];
   const operands: Node[] = [];
-  const operators: (keyof typeof precedence | "(")[] = [];
+  const operators: (keyof typeof precedence)[] = [];
   function opOut() {
     const op = operators.pop()!;
     const right = operands.pop()!;
     const left = operands.pop()!;
     operands.push({ kind: "binary op", op, left, right });
   }
-  for (const item of items) {
-    if (item === "(") {
-      operators.push(item);
-    } else if (item === ")") {
-      while (operators.at(-1) !== "(") {
-        assert(operators.length !== 0, "Unbalanced parentheses");
-        opOut();
-      }
-      operators.pop();
-    } else if (typeof item === "string") {
-      let o;
-      while (
-        (o = operators.at(-1)) &&
-        o !== "(" &&
-        precedence[o] >= precedence[item]
+  for (const item of code) {
+    if (typeof item === "string") {
+      for (
+        let o = operators.at(-1);
+        o && precedence[o] >= precedence[item];
+        o = operators.at(-1)
       ) {
         opOut();
       }
@@ -204,7 +160,15 @@ function expression(tokens: Token[]): Node {
 }
 
 function primary(tokens: Token[]) {
-  return or([fnCall, varRef, literal], tokens);
+  return or([parenthesized, fnCall, varRef, literal, implicit], tokens);
+}
+
+function parenthesized(tokens: Token[]) {
+  assert(tokens[0]?.kind === "open paren", "not parenthesized");
+  tokens.shift();
+  const expr = expression(tokens);
+  assert(tokens.shift()!.kind === "close paren");
+  return expr;
 }
 
 function literal(tokens: Token[]) {
@@ -236,9 +200,6 @@ function lambda(tokens: Token[]): Node {
   assert(tokens[0]?.kind === "open curly", "not lambda");
   tokens.shift();
   const body = many(expression, tokens);
-  // while ((tokens[0] as Token)?.kind !== "close curly") {
-  //   body.push(expression(tokens));
-  // }
   tokens.shift();
   return { kind: "lambda", body };
 }
@@ -270,24 +231,30 @@ function varRef(tokens: Token[]): Node {
   assert(tokens[1]?.kind !== "tilde", "not varRef");
   return { kind: "varRef", name: tokens.shift()!.text };
 }
+function implicit(): Node {
+  return { kind: "implicit" };
+}
 
 const out = (n: Node): string =>
   n.kind === "binary op"
-    ? `(${n.op} ${out(n.left)} ${out(n.right)})`
+    ? `(${out(n.left)} ${n.op} ${out(n.right)})`
     : n.kind === "str" || n.kind === "int"
     ? n.value + ""
     : n.kind === "fnCall"
-    ? `(${n.name} ${n.args.map(out).join(" ")})`
+    ? `${n.name}(${n.args.map(out).join(" ")})`
     : n.kind === "varRef"
     ? n.name
     : n.kind === "lambda"
-    ? "{ " + n.body.map(out).join(" ") + " }"
+    ? "{" + n.body.map(out).join(" ") + "}"
+    : n.kind === "list"
+    ? "[" + n.items.map(out).join(" ") + "]"
+    : n.kind === "implicit"
+    ? "[implicit]"
     : JSON.stringify(n);
 
-console.log(out(expression([...lex("1 - f~({ a + 2 * 3})")])));
+console.log(out(expression([...lex("1 + + 1")])));
 
 // TODO!
-// - character literals
+// - character literals ('z = "z")
 // - assignment
 // - $ literals
-// - implicits (hopefully not hard, just add {nothing} to primary)
