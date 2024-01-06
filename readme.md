@@ -1,4 +1,4 @@
-# YAK
+# FMS
 
 This is a new programming language I'm working on (yes, I've started many of
 these and not finished any but this time will be different...). It's designed to
@@ -11,7 +11,7 @@ particularly final.
 
 ---
 
-YAK
+FMS
 
 golflang similar to golfscript, but with way more elements of practical
 languages
@@ -80,13 +80,13 @@ add_two~ 5
 Modules:
 
 ```
-# math.yak
+# math.fms
 
 pi : 3.14159; fn rad(deg) {deg \* (pi / 180)}
 
 # or pi / 180 \* deg
 
-# main.yak
+# main.fms
 
 use math; math.rad .)+0.2
 ```
