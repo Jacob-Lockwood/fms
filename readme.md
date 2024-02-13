@@ -1,152 +1,140 @@
 # FMS
 
-This is a new programming language I'm working on (yes, I've started many of
-these and not finished any but this time will be different...). It's designed to
-be reasonably good at code-golf while still being usable for practical problems.
-The interpreter will be written in TypeScript, but so far I'm still working on
-the parser.
+CST is (basically) done
 
-The rest of this readme is my language design notes and nothing formal or
-particularly final.
+the following document is informal language design notes.
+I will write a real readme when I have the interpreter working.
 
----
-
-FMS
-
-golflang similar to golfscript, but with way more elements of practical
-languages
-
-Infix is cool
-
-Lazy evaluation! (kinda like Haskell)
-
-Primality test (15)
+golflang similar to golfscript, but infix.
+main inspirations GS and Japt
 
 ```
-{range1)/*~^2%}
-```
-
-or recursively (21):
-
-```
-f:{if%,|:-1f~.,-1,=1}
-```
-
-FizzBuzz (32):
-
-```
-{100*{%3!*"Fizz"+%5!*"Buzz"|}}
+~op = {U op V}
+~pf = {U pf}
 ```
 
 ```
-"Fizz" * !(. % 3) + "Buzz" * !(. % 5) | .
-|(+(*("Fizz",!(%($,3))),*("Buzz",!(%($,5)))),$)
-```
-
-Esolang commenter (43):
-
-```
-{a:0;s:$1/?|)%{? *a++? *(1+len*"")-a+:len)+$2}}
-```
-
-Swap every two (12)
-
-```
-{%2%rev~*[]}
-```
-
-Quine (48)
-
-```
-puts a:"puts a:%s)%(b:chr34))+a+b")%(b:chr34))+a+b;
+1 + + + + 2
+1 +U+U+U+ 2
 ```
 
 ```
-b:chr34;puts a:"b:chr34;puts a:%s)%(b+a+b))")%(b+a+b;
+"Hello" + X
+
+```
+
+Primality test (8)
+
+```
+,1/~*^2%
+```
+
+FizzBuzz (30):
+
+```
+1,L%{%3!*"Fizz"+%5!*"Buzz"|}*N
+```
+
+Esolang commenter (36):
+
+```
+S=/'|;%{' *Z++' *(S*""sz+1-Z+=sz)+V}
+```
+
+Swap every two (9)
+
+```
+%2%~rv*[]
+```
+
+Quine (11)
+
+```
+"%u%%X"%X
+# alternatives:
+"-Xjs"-Xjs
+="=%u;%%";%
+=";js-'=+";js-'=+
+("-34ch-'()*2"-34ch-'()*2
 ```
 
 Custom functions:
 
 ```
-fn add_two(arg) {arg + 2}
-add_two 5
-
-# contrast with
-
-add_two : {. + 2}
-add_two~ 5
+ADD_TWO = {+2}
+5 ~ADD_TWO
+# multiple args
+SUM = {U + V + W + UU + UV + UW + VU + …}
+SUM = {N / ~+}
 ```
-
-Modules:
-
-```
-# math.fms
-
-pi : 3.14159; fn rad(deg) {deg \* (pi / 180)}
-
-# or pi / 180 \* deg
-
-# main.fms
-
-use math; math.rad .)+0.2
-```
-
-globals are automatically imported
 
 Built-ins:
 
-| name    | function                                              |
-| ------- | ----------------------------------------------------- |
-| `.`     | First lambda argument                                 |
-| `,`     | Second lambda argument                                |
-| `+`     | Add / concat / lambda compose                         |
-| `-`     | Subtract / set diff                                   |
-| `*`     | Multiply / join / n times / reduce by                 |
-| `/`     | Divide / split / n equal chunks / partition by lambda |
-| `^`     | Exponent                                              |
-| `%`     | Mod / map / chunks of size n                          |
-| `<=>`   | Comparison                                            |
-| `&\|`   | And / Or                                              |
-| `!`     | Not (postfix)                                         |
-| `if`    | `if cond {then} [else]`                               |
-| `len`   | length                                                |
-| `rev`   | reverse                                               |
-| `range` | [a, b)                                                |
-| `n`     | Newline                                               |
+<!-- prettier-ignore-start -->
+| NAME  | DESCRIPTION                            |
+|-------|----------------------------------------|
+| U     | first argument                         |
+| V     | second argument                        |
+| W     | third argument                         |
+| N     | argument list                          |
+| +     | add / append                           |
+| -     | subtract / prepend                     |
+| \*    | multiply / join / repeat / group by    |
+| /     | divide / split / fold / n equal chunks |
+| \`    | filter                                 |
+| \\    | reduced fraction pair                  |
+| ^     | power / a in b? / sort by              |
+| %     | mod / map / chunks of size n           |
+| <> eq | comparison                             |
+| & \|  | and / or                               |
+| rv    | reverse                                |
+| ch    | chr / ord                              |
+| uq    | uniquify                               |
+| I     | identity                               |
+| ty    | type “a” “s” “c” “n” “f”               |
+| ta    | coerce to array                        |
+| ts    | coerce to string                       |
+| tn    | coerce to number                       |
+| tc    | coerce to character                    |
+| tf    | coerce to function                     |
+| tr    | transliterate                          |
+| js    | json stringify                         |
+| jp    | json parse                             |
+| !     | not                                    |
+| sz    | size (length)                          |
+| p     | print                                  |
+| ,     | range [a, b)                           |
+| .     | pair [a, b]                            |
+| N     | newline                                |
+| L     | 100                                    |
+| S     | space                                  |
+| X     | last value                             |
+| Z     | zero                                   |
 
-Interpreter process:
-
-1. Lex (implemented!)
-2. Normalize parentheses: Insert after function name, at end of literal.
-   implemented!
-3. Parse to tree of operator / function calls and literals, with precedence
-   established Parsing:
-   - if token is open paren, recurse
-   - if token is close paren, return
-   - if token is literal, parse_literal
-   - if token is binary op, { op, left: prev, right: next }
-
-Runtime: Everything is lazy evaluated with Lazy<T> class. Operations just map
-Lazy’s together.
-
-```
-a.map((a)=>b.map((b)=>a+b))
-Lazy.all([a,b]).then(([a,b])=>a+b)
-```
-
-check if a word is a function or variable by checking if it’s either in the list
-of built-ins or if there is an `fn` followed by the name.
-
-Precedence climbing to convert operators to JS function calls. Everything left
-associative
-
-Parsing expressions by precedence climbing - Eli Bendersky's website
-
-Infix Expression Parsing | reinterpretcast.com
+<!-- prettier-ignore-end -->
 
 ```
-{/(len)/2)%rev~*[]}
-{ / ( len ) / 2 ) % rev~ * [ ] }
-{ / ( len ( ) / 2) % rev~ * [ ] }
-{ (%(/(it, /(len(it), 2)), rev), []) }
+
+1.2.3`{%2}
+
 ```
+
+Parsing:
+
+the expressions are made of “terms” separated by “+” or “-“ or “|” or “&” or "eq" or “<“ or “>” or “?” with the next separator being “:”
+
+terms are made of primaries, separated by infix operators, followed by 0 or more postfix ops.
+
+primaries are literals, parenthesized expressions, variable references, and assignments. if no valid primary is read, the implicit primary is U
+
+EBNF grammar:
+
+```
+program = expression, { ";", [ expression ] };
+expression = term, { (term separator, term) | ("?", term, ":", term) };
+term = primary, { postfix operator | (binary operator, primary) };
+primary = [ assignment | variable reference | parenthesized | literal ];
+assignment = variable name, [ non variable ], "=", expression;
+```
+
+check if a word is a function or variable by checking if it’s either in the list of built-ins or if there is a ~
