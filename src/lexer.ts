@@ -17,7 +17,7 @@ const tokens = {
   questionMark: /\?/y,
   variableName: /[A-Z_]+/y,
   binaryOperatorName: /[@$%^&*\-+|,./<>`\\]|eq/y,
-  postfixOperatorName: /[a-z]+|!/y,
+  postfixOperatorName: /[a-z]{2}|!/y,
 } satisfies Record<string, RegExp>;
 
 export type Token<T extends keyof typeof tokens = keyof typeof tokens> = {
