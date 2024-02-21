@@ -1,1 +1,2 @@
 - automatic semicolon insertion
+- modify lexer to allow string interpolation

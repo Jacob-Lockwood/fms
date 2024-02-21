@@ -16,7 +16,7 @@ const tokens = {
   colon: /:/y,
   questionMark: /\?/y,
   variableName: /[A-Z_]+/y,
-  binaryOperatorName: /[@$%^&*\-+|,./<>`\\]|eq/y,
+  binaryOperatorName: /[@$%^&*\-+|,./<>`\\]|eq|neq/y,
   postfixOperatorName: /[a-z]{2}|!/y,
 } satisfies Record<string, RegExp>;
 
