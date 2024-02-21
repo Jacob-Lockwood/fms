@@ -1,8 +1,13 @@
 import { lex } from "./src/lexer.ts";
-import { CSTBuilder } from "./src/parser/cst.ts";
+import { Parser } from "./src/parser.ts";
 
-const code = `S=/'|;%{' *Z++' *(S*""sz+1-Z+=sz)+V}`;
-const tokens = lex(code);
-const parsed = new CSTBuilder(tokens).program();
-// console.log(parsed);
-console.log(JSON.stringify(parsed, ["kind", "children"], 2));
+const pgm = (code: string) => {
+  const parser = new Parser(lex(code));
+  const program = parser.program();
+  console.log(JSON.stringify(program, null, 2) + "\n");
+  const cst = parser.cst;
+  console.log(JSON.stringify(cst, ["name", "children", "image"], 2) + "\n");
+};
+
+pgm(`O=/'|;%{S*Z++S*(O*""sz+1-Z+=sz)+V}`);
+// pgm(`S*Z++S*(O*""sz+1-Z+=sz)+V`);
