@@ -1,8 +1,6 @@
 # FMS
 
-CST is (basically) done
-
-the following document is informal language design notes.
+the following document is informal (and outdated!) language design notes.
 I will write a real readme when I have the interpreter working.
 
 golflang similar to golfscript, but infix.
