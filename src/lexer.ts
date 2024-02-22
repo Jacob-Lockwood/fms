@@ -1,7 +1,10 @@
 import { assert } from "./util.ts";
 
 const tokens = {
-  string: /"([^"]|\\")*"/y,
+  string: /"(\\.|[^"$])*"/y,
+  stringStart: /"(\\.|[^"$])*\$/y,
+  stringEnd: /\$(\\.|[^"$])*"/y,
+  stringPart: /\$(\\.|[^"$])*\$/y,
   number: /\d+_?/y,
   character: /'./y,
   openParen: /\(/y,
@@ -16,7 +19,7 @@ const tokens = {
   colon: /:/y,
   questionMark: /\?/y,
   variableName: /[A-Z_]+/y,
-  binaryOperatorName: /[@$%^&*\-+|,./<>`\\]|eq|neq/y,
+  binaryOperatorName: /[@%^&*\-+|,./<>`\\]|eq|neq/y,
   postfixOperatorName: /[a-z]{2}|!/y,
 } satisfies Record<string, RegExp>;
 
@@ -45,6 +48,18 @@ export function lex(code: string) {
   let line = 0;
   let column = 0;
   loop: while (index < code.length) {
+    for (const ignore of Object.values(ignores)) {
+      const execResult = ignore.exec(code.slice(index));
+      if (!execResult) continue;
+      const match = execResult[0];
+      column = match.includes("\n")
+        ? match.split("\n").at(-1)!.length
+        : column + match.length;
+      line += match.split("\n").length - 1;
+      index += ignore.lastIndex;
+      ignore.lastIndex = 0;
+      continue loop;
+    }
     for (const key in tokens) {
       const kind = key as keyof typeof tokens;
       const regex = tokens[kind];
@@ -64,18 +79,6 @@ export function lex(code: string) {
           : column + match.length),
       });
       regex.lastIndex = 0;
-      continue loop;
-    }
-    for (const ignore of Object.values(ignores)) {
-      const execResult = ignore.exec(code.slice(index));
-      if (!execResult) continue;
-      const match = execResult[0];
-      column = match.includes("\n")
-        ? match.split("\n").at(-1)!.length
-        : column + match.length;
-      line += match.split("\n").length - 1;
-      index += ignore.lastIndex;
-      ignore.lastIndex = 0;
       continue loop;
     }
     throw new SyntaxError("Unexpected token: " + code.slice(index));

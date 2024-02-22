@@ -165,6 +165,7 @@ export class Parser {
       this.arrayLiteral,
       this.numberLiteral,
       this.stringLiteral,
+      this.interpolatedStringLiteral,
       this.characterLiteral,
     ]);
   functionLiteral = this.rule("functionLiteral", () => {
@@ -184,6 +185,17 @@ export class Parser {
   });
   stringLiteral = this.rule("stringLiteral", () => {
     return this.consume("string").image.slice(1, -1);
+  });
+  interpolatedStringLiteral = this.rule("interpolatedStringLiteral", () => {
+    const start = this.consume("stringStart").image.slice(1, -1);
+    const parts = this.many(() => [
+      this.expression(),
+      this.consume("stringPart").image.slice(1, -1),
+    ]).flat();
+    const end = this.consume("stringEnd").image.slice(1, -1);
+    parts.unshift(start);
+    parts.push(end);
+    return parts;
   });
   characterLiteral = this.rule("characterLiteral", () => {
     return this.consume("character").image.slice(1);
